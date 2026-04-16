@@ -1,6 +1,7 @@
 FROM runpod/pytorch:1.0.3-cu1281-torch291-ubuntu2204
 
 ENV PYTHONUNBUFFERED=1
+ENV WEIGHTS_DIR=/workspace/models
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git-lfs ffmpeg libsndfile1 bc \
@@ -17,8 +18,9 @@ RUN . /venv/main/bin/activate && \
 
 RUN sed -i 's|from inspect import ArgSpec|# from inspect import ArgSpec|' /opt/infinitetalk/wan/multitalk.py || true
 RUN sed -i 's|from_pretrained(wav2vec, local_files_only=True)|from_pretrained(wav2vec, local_files_only=True, attn_implementation="eager")|' /opt/infinitetalk/generate_infinitetalk.py || true
-
 COPY patch_attention.py /tmp/patch_attention.py
 RUN . /venv/main/bin/activate && python /tmp/patch_attention.py && rm /tmp/patch_attention.py
+
+COPY start_infinitetalk.sh /opt/infinitetalk/start_infinitetalk.sh
 
 WORKDIR /opt/infinitetalk
