@@ -32,3 +32,13 @@ RUN . /venv/main/bin/activate && python /tmp/patch_attention.py && rm /tmp/patch
 COPY start_infinitetalk.sh /opt/infinitetalk/start_infinitetalk.sh
 
 WORKDIR /opt/infinitetalk
+
+# Auto-start: download models on boot via supervisor
+RUN mkdir -p /etc/supervisor/conf.d /var/log/infinitetalk && \
+    echo '[program:infinitetalk-setup]' > /etc/supervisor/conf.d/infinitetalk.conf && \
+    echo 'command=/opt/infinitetalk/start_infinitetalk.sh' >> /etc/supervisor/conf.d/infinitetalk.conf && \
+    echo 'autostart=true' >> /etc/supervisor/conf.d/infinitetalk.conf && \
+    echo 'autorestart=false' >> /etc/supervisor/conf.d/infinitetalk.conf && \
+    echo 'startsecs=0' >> /etc/supervisor/conf.d/infinitetalk.conf && \
+    echo 'stdout_logfile=/var/log/infinitetalk/setup.log' >> /etc/supervisor/conf.d/infinitetalk.conf && \
+    echo 'stderr_logfile=/var/log/infinitetalk/setup.log' >> /etc/supervisor/conf.d/infinitetalk.conf
