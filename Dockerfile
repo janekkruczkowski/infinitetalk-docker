@@ -1,5 +1,4 @@
-# === Vast.ai version ===
-FROM vastai/pytorch:cuda-12.1.1-auto AS vast
+FROM vastai/pytorch:cuda-12.1.1-auto
 
 ENV PYTHONUNBUFFERED=1
 
@@ -8,7 +7,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && git lfs install
 
-# InfiniteTalk native CLI + deps (NO flash-attn — torch SDPA handles it)
 RUN . /venv/main/bin/activate && \
     pip install -U xformers && \
     git clone --depth 1 https://github.com/MeiGen-AI/InfiniteTalk.git /opt/infinitetalk && \
@@ -17,33 +15,10 @@ RUN . /venv/main/bin/activate && \
     pip install -r requirements.txt && \
     pip install librosa soundfile huggingface_hub hf_transfer
 
-# Patch 1: ArgSpec removed in Python 3.12
-RUN sed -i 's|from inspect import ArgSpec|# from inspect import ArgSpec|' \
-    /opt/infinitetalk/wan/multitalk.py 2>/dev/null || true
+RUN sed -i 's|from inspect import ArgSpec|# from inspect import ArgSpec|' /opt/infinitetalk/wan/multitalk.py || true
+RUN sed -i 's|from_pretrained(wav2vec, local_files_only=True)|from_pretrained(wav2vec, local_files_only=True, attn_implementation="eager")|' /opt/infinitetalk/generate_infinitetalk.py || true
 
-# Patch 2: wav2vec2 eager attention (newer transformers)
-RUN sed -i 's|from_pretrained(wav2vec, local_files_only=True)|from_pretrained(wav2vec, local_files_only=True, attn_implementation="eager")|' \
-    /opt/infinitetalk/generate_infinitetalk.py 2>/dev/null || true
-
-# Patch 3: SDPA fallback for flash_attention() direct calls
-RUN cd /opt/infinitetalk && python -c "
-s = open('wan/modules/attention.py').read()
-old = '''    else:
-        assert FLASH_ATTN_2_AVAILABLE'''
-new = '''    else:
-        if not FLASH_ATTN_2_AVAILABLE:
-            q_sdpa = q.unflatten(0, (b, lq)).transpose(1, 2).to(out_dtype)
-            k_sdpa = k.unflatten(0, (b, lk)).transpose(1, 2).to(out_dtype)
-            v_sdpa = v.unflatten(0, (b, lk)).transpose(1, 2).to(out_dtype)
-            x = torch.nn.functional.scaled_dot_product_attention(
-                q_sdpa, k_sdpa, v_sdpa, dropout_p=dropout_p, scale=softmax_scale, is_causal=causal)
-            return x.transpose(1, 2).contiguous()
-        assert FLASH_ATTN_2_AVAILABLE'''
-if old in s:
-    open('wan/modules/attention.py','w').write(s.replace(old, new))
-    print('Patched attention.py')
-else:
-    print('Pattern not found, skipping')
-"
+COPY patch_attention.py /tmp/patch_attention.py
+RUN . /venv/main/bin/activate && python /tmp/patch_attention.py && rm /tmp/patch_attention.py
 
 WORKDIR /opt/infinitetalk
