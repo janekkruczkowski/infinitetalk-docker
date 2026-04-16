@@ -8,29 +8,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && git lfs install
 
+# InfiniteTalk + ALL deps from their requirements.txt (includes xfuser, diffusers, transformers)
+# NO torch pin — use platform base torch (2.9+)
+# NO flash_attn — torch SDPA provides Flash Attention natively on H100/A100
 RUN . /venv/main/bin/activate && \
     pip install -U xformers && \
     git clone --depth 1 https://github.com/MeiGen-AI/InfiniteTalk.git /opt/infinitetalk && \
     cd /opt/infinitetalk && \
-    pip install "misaki[en]" ninja psutil packaging wheel && \
     pip install -r requirements.txt && \
     pip install librosa soundfile huggingface_hub hf_transfer
 
 # Patch 1: ArgSpec removed in Python 3.11+
 RUN sed -i 's|from inspect import ArgSpec|# from inspect import ArgSpec|' /opt/infinitetalk/wan/multitalk.py || true
 
-# Patch 2: wav2vec2 eager attention
+# Patch 2: wav2vec2 eager attention (transformers 4.49+)
 RUN sed -i 's|from_pretrained(wav2vec, local_files_only=True)|from_pretrained(wav2vec, local_files_only=True, attn_implementation="eager")|' /opt/infinitetalk/generate_infinitetalk.py || true
 
-# Patch 3: SDPA fallback for flash_attention()
+# Patch 3: SDPA fallback for flash_attention() (when flash_attn not installed)
 COPY patch_attention.py /tmp/patch_attention.py
 RUN . /venv/main/bin/activate && python /tmp/patch_attention.py && rm /tmp/patch_attention.py
 
-# Patch 4: xfuser optional (for single-GPU without xfuser)
-COPY patch_xfuser.py /tmp/patch_xfuser.py
-RUN . /venv/main/bin/activate && python /tmp/patch_xfuser.py && rm /tmp/patch_xfuser.py
-
-# Auto-download script
+# Auto-download models script
 COPY start_infinitetalk.sh /opt/infinitetalk/start_infinitetalk.sh
 
 WORKDIR /opt/infinitetalk
