@@ -13,7 +13,7 @@ RUN pip install -U xformers && \
     git clone --depth 1 https://github.com/MeiGen-AI/InfiniteTalk.git /opt/infinitetalk && \
     cd /opt/infinitetalk && \
     pip install -r requirements.txt && \
-    pip install "misaki[en]" librosa soundfile huggingface_hub hf_transfer
+    pip install librosa soundfile huggingface_hub hf_transfer
 
 # Patch 1: ArgSpec
 RUN sed -i 's|from inspect import ArgSpec|# from inspect import ArgSpec|' /opt/infinitetalk/wan/multitalk.py || true
