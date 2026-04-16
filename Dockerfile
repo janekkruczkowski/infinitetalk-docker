@@ -16,14 +16,21 @@ RUN . /venv/main/bin/activate && \
     pip install -r requirements.txt && \
     pip install librosa soundfile huggingface_hub hf_transfer
 
-# Patches
+# Patch 1: ArgSpec removed in Python 3.11+
 RUN sed -i 's|from inspect import ArgSpec|# from inspect import ArgSpec|' /opt/infinitetalk/wan/multitalk.py || true
+
+# Patch 2: wav2vec2 eager attention
 RUN sed -i 's|from_pretrained(wav2vec, local_files_only=True)|from_pretrained(wav2vec, local_files_only=True, attn_implementation="eager")|' /opt/infinitetalk/generate_infinitetalk.py || true
+
+# Patch 3: SDPA fallback for flash_attention()
 COPY patch_attention.py /tmp/patch_attention.py
 RUN . /venv/main/bin/activate && python /tmp/patch_attention.py && rm /tmp/patch_attention.py
 
-# Auto-download script (Vast runs via PROVISIONING_SCRIPT env var)
+# Patch 4: xfuser optional (for single-GPU without xfuser)
+COPY patch_xfuser.py /tmp/patch_xfuser.py
+RUN . /venv/main/bin/activate && python /tmp/patch_xfuser.py && rm /tmp/patch_xfuser.py
+
+# Auto-download script
 COPY start_infinitetalk.sh /opt/infinitetalk/start_infinitetalk.sh
 
 WORKDIR /opt/infinitetalk
-# NO ENTRYPOINT — Vast's native entrypoint handles SSH/supervisor/portal
