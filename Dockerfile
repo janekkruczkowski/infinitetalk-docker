@@ -3,13 +3,19 @@
 FROM python:3.12-slim AS downloader
 
 RUN pip install --no-cache-dir pip-tools
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+
 RUN pip download torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 \
     --index-url https://download.pytorch.org/whl/cu121 \
     -d /wheels
 RUN pip download xformers==0.0.28 \
     --index-url https://download.pytorch.org/whl/cu121 \
     -d /wheels
-RUN pip download flash_attn==2.7.4.post1 -d /wheels || true
+
+# flash-attn is NOT on PyPI — pull prebuilt wheel directly from GitHub release.
+# Must match torch+cuda+python+cxx11abi of runtime image.
+RUN curl -fL -o /wheels/flash_attn-2.7.4.post1-cp312-linux_x86_64.whl \
+    https://github.com/Dao-AILab/flash-attention/releases/download/v2.7.4.post1/flash_attn-2.7.4.post1+cu12torch2.4cxx11abiFALSE-cp312-cp312-linux_x86_64.whl
 
 
 # Stage 2: Runtime (Vast pytorch base, fast boot on Vast.ai)
