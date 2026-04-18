@@ -37,16 +37,23 @@ hf download TencentGameMate/chinese-wav2vec2-base model.safetensors \
   --local-dir "$WEIGHTS/chinese-wav2vec2-base"
 
 # 3. InfiniteTalk — single/ + FP8 quant_models ONLY.
-# Skip multi/ (9 GB, not used), comfyui/ (5 GB, not used), int8 quant (~16 GB).
+# Skip multi/ (9 GB), comfyui/ (5 GB), int8 quant (~16 GB).
+# Per-file download: `hf download --include` with multiple patterns silently skips
+# safetensors files on this repo (hf_hub 1.x bug). Individual file args work.
 echo "[infinitetalk] 3/4 InfiniteTalk single adapter + FP8 quant (~36 GB)..."
-hf download MeiGen-AI/InfiniteTalk \
-  --include "single/*" \
-  --include "quant_models/infinitetalk_single_fp8.safetensors" \
-  --include "quant_models/infinitetalk_single_fp8.json" \
-  --include "quant_models/t5_fp8.safetensors" \
-  --include "quant_models/t5_map_fp8.json" \
-  --include "quant_models/quant.json" \
-  --local-dir "$WEIGHTS/InfiniteTalk"
+IT_REPO=MeiGen-AI/InfiniteTalk
+IT_DIR="$WEIGHTS/InfiniteTalk"
+for f in \
+  single/infinitetalk.safetensors \
+  quant_models/infinitetalk_single_fp8.safetensors \
+  quant_models/infinitetalk_single_fp8.json \
+  quant_models/t5_fp8.safetensors \
+  quant_models/t5_map_fp8.json \
+  quant_models/quant.json
+do
+  echo "  -> $f"
+  hf download "$IT_REPO" "$f" --local-dir "$IT_DIR"
+done
 
 # 4. Clean HF download cache (contains duplicates from --local-dir symlinks)
 echo "[infinitetalk] 4/4 Cleaning caches..."
