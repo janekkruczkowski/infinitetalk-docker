@@ -14,7 +14,8 @@ RUN pip download xformers==0.0.28 \
 
 # flash-attn is NOT on PyPI — pull prebuilt wheel directly from GitHub release.
 # Must match torch+cuda+python+cxx11abi of runtime image.
-RUN curl -fL -o /wheels/flash_attn-2.7.4.post1-cp312-linux_x86_64.whl \
+# Keep full wheel name with cp312-cp312 tag pair so pip accepts it.
+RUN curl -fL -o /wheels/flash_attn-2.7.4.post1-cp312-cp312-linux_x86_64.whl \
     https://github.com/Dao-AILab/flash-attention/releases/download/v2.7.4.post1/flash_attn-2.7.4.post1+cu12torch2.4cxx11abiFALSE-cp312-cp312-linux_x86_64.whl
 
 
